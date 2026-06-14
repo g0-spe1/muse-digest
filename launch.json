@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "muse-gallery",
+      "runtimeExecutable": "E:/开发集/ArtiMuse-master/.venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "http.server", "8753", "--directory", "E:/开发集/ArtiMuse-master/muse-digest/data/gallery"],
+      "port": 8753
+    }
+  ]
+}

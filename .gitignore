@@ -1,0 +1,11 @@
+# Runtime output
+data/
+*.log
+
+# Playwright persistent login profile (contains your session — never commit)
+.browser_profile/
+
+# Python
+__pycache__/
+*.pyc
+.venv/

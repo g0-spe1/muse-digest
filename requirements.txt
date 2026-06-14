@@ -1,0 +1,17 @@
+# Core pipeline (Phase 1 — no GPU required)
+feedparser>=6.0.10        # RSS/Atom parsing
+requests>=2.31.0          # HTTP
+beautifulsoup4>=4.12.0    # HTML parsing / og:image extraction
+lxml>=4.9.0               # fast parser backend for bs4
+Jinja2>=3.1.0             # HTML gallery templating
+PyYAML>=6.0               # config.yaml
+Pillow>=10.0.0            # thumbnail generation
+numpy>=1.26.0            # heuristic visual-feature analysis (per-image pixel statistics)
+
+# Phase 2 — ArtiMuse "online" backend (browser automation of the official demo)
+# Install browser binaries afterwards with:  python -m playwright install chromium
+playwright>=1.40.0
+
+# Phase 3 — ArtiMuse local 4-bit backend reuses the PARENT repo's requirements.txt
+# (torch, transformers==4.37.2, bitsandbytes, timm, einops, ...). Not installed here
+# by default because it needs a CUDA GPU. See README "Local ArtiMuse backend".

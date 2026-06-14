@@ -1,0 +1,87 @@
+# ============================================================================
+# MuseDigest configuration
+# Edit feeds, categories and limits here. CLI flags (run.py) override some values.
+# ============================================================================
+
+# --- Curated, reputable RSS/Atom sources -----------------------------------
+# These all publish full summaries + hero images and permit personal reading.
+# Add/remove freely; each needs a unique `name` and a working `url`.
+feeds:
+  - name: PetaPixel
+    url: https://petapixel.com/feed/
+    topic: photography
+  - name: Fstoppers
+    url: https://fstoppers.com/feed
+    topic: photography
+  - name: DPReview
+    url: https://www.dpreview.com/feeds/news.xml
+    topic: photography
+  - name: This Is Colossal
+    url: https://www.thisiscolossal.com/feed/
+    topic: art
+  - name: Creative Boom
+    url: https://www.creativeboom.com/feed/
+    topic: design
+  - name: Design Milk
+    url: https://design-milk.com/feed/
+    topic: design
+
+# --- Genre taxonomy --------------------------------------------------------
+# Each category maps to keyword cues matched against title/summary/tags.
+# Order matters: earlier categories win ties. "Uncategorized" is the fallback.
+categories:
+  Portrait:        [portrait, headshot, self-portrait, face, model, posing]
+  Street:          [street photography, street photographer, urban, candid]
+  Landscape:       [landscape, mountain, seascape, vista, valley, horizon, nature scenery]
+  Architecture:    [architecture, building, facade, interior, structure, cityscape]
+  Documentary:     [documentary, photojournalism, reportage, conflict, protest]
+  "Wildlife & Nature": [wildlife, animal, bird, safari, macro, insect, underwater]
+  Astro:           [astrophotography, milky way, night sky, stars, aurora, astro]
+  "Conceptual & Fine-Art": [conceptual, fine art, surreal, abstract, composite, collage]
+  "Product & Commercial": [product photography, commercial, advertising, still life, packaging]
+  Fashion:         [fashion, editorial, runway, couture, beauty]
+  Travel:          [travel photography, destination, expedition]
+  "Black & White": [black and white, monochrome, b&w]
+  Design:          [graphic design, typography, branding, illustration, poster, ui, ux]
+
+# --- Collection / download limits ------------------------------------------
+collection:
+  max_articles_per_feed: 8     # newest N entries per feed
+  max_images_total: 24         # cap on images analyzed per run
+  max_images_per_article: 2    # avoid one article flooding the album
+
+download:
+  user_agent: "MuseDigest/1.0 (personal study tool; +https://github.com/thunderbolt215/ArtiMuse)"
+  request_delay_seconds: 1.5   # politeness delay between requests to the same host
+  timeout_seconds: 20
+  respect_robots: true
+  thumbnail_max_px: 900        # longest edge of stored thumbnail
+  min_image_px: 400            # skip tiny icons/logos below this longest edge
+
+# --- Aesthetic analysis backend --------------------------------------------
+analyzer:
+  # One of: heuristic | artimuse_browser | artimuse_local
+  backend: heuristic
+
+  artimuse_browser:
+    demo_url: https://artimuse.intern-ai.org.cn/
+    profile_dir: .browser_profile   # persistent login session lives here
+    headless: false                 # must be visible for the one-time manual login
+    per_image_timeout_seconds: 120
+    # Drive an already-installed browser instead of downloading playwright's chromium.
+    # On Windows, "msedge" uses the preinstalled Edge (no 150 MB download). Other options:
+    # "chrome", or "" (empty) to use playwright's bundled chromium after
+    # `python -m playwright install chromium`.
+    channel: msedge
+
+  artimuse_local:
+    # Path to a downloaded ArtiMuse checkpoint dir (relative to the PARENT repo root).
+    model_path: checkpoints/ArtiMuse
+    device: cuda:0
+    load_in_4bit: true              # required to fit ~6 GB VRAM
+    use_flash_attn: false           # flash-attn is painful on Windows
+    max_new_tokens: 1024
+
+# --- Output ----------------------------------------------------------------
+output:
+  title: "妙析速递 — 摄影与设计灵感"
