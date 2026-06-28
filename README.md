@@ -1,6 +1,6 @@
 # MuseDigest · 妙析速递
 
-> English version: [README_EN.md](README_EN.md)
+> English version: [README_EN.md](README_EN.md) · 📱 iOS 移动端图库：[README_IOS.md](README_IOS.md)
 
 自动收集最新的**摄影 / 设计 / 创意产业**资讯，编制**分类影像集**，从**设计与美学**视角分析每张图片 —— 最终呈现为一个自包含的**交互式 HTML 图库**（界面以中文为主）。
 
@@ -55,6 +55,19 @@ python run.py --limit 12 --backend heuristic --open
 - **筛选与排序** —— 题材标签、来源下拉框，以及按分数 / 来源排序。
 - **详情抽屉** —— 完整评析，含 8 个美学维度的**雷达图**（当后端提供逐维度分数时点亮）、逐维度分数标签、"创意灵感"要点，以及图片间的 **← / →** 导航。
 - **灯箱** —— 点击抽屉图片可放大查看，支持方向键导航。
+
+## 📱 iOS 移动端图库
+
+想在 iPhone / iPad 上看？用面向 **iOS Safari** 优化的响应式版本（触摸手势、刘海安全区、
+瀑布流自适应、可「添加到主屏幕」当 App 离线用）。它**不重新分析**，只把现有图库换一套移动端 UI：
+
+```bash
+python build_ios_gallery.py --open      # 生成 data/gallery-ios/index.html 并打开
+python build_ios_gallery.py --serve     # 起局域网服务器，iPhone 连同一 WiFi 用 Safari 打开
+```
+
+或双击 **`start-ios.bat`**（Windows）/ 运行 **`./start-ios.sh`**（macOS/Linux）。
+没有图库数据时会回退到内置示例数据。详见 **[README_IOS.md](README_IOS.md)**。
 
 ## 导入自己的照片分析
 

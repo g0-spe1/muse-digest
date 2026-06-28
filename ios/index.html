@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<!-- iOS adaptation: viewport-fit=cover lets the page paint under the notch / home indicator;
+     we then inset content with env(safe-area-inset-*) below. maximum-scale keeps pinch-zoom
+     available but stops the 0.9s "double-tap to zoom" jump on form-less taps. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="妙析速递">
+<meta name="format-detection" content="telephone=no">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0b0b0f" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+<title>妙析速递 · iOS 图库</title>
+<style>
+  /* ============================ Design tokens ============================ */
+  :root{
+    --bg:#0b0b0f; --bg-elev:#16161c; --bg-elev2:#1f1f27;
+    --txt:#f2f2f7; --txt-dim:#a1a1aa; --txt-faint:#6b6b76;
+    --line:rgba(255,255,255,.10); --line-strong:rgba(255,255,255,.18);
+    --accent:#0a84ff;            /* iOS system blue */
+    --good:#30d158; --mid:#ffd60a; --low:#ff453a;
+    --radius:18px; --radius-sm:12px;
+    --shadow:0 10px 40px rgba(0,0,0,.5);
+    /* Safe-area shorthands (fall back to 0 on non-notch devices). */
+    --sat:env(safe-area-inset-top,0px);
+    --sab:env(safe-area-inset-bottom,0px);
+    --sal:env(safe-area-inset-left,0px);
+    --sar:env(safe-area-inset-right,0px);
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#f5f5f7; --bg-elev:#ffffff; --bg-elev2:#ececf1;
+      --txt:#1c1c1e; --txt-dim:#52525b; --txt-faint:#8e8e93;
+      --line:rgba(0,0,0,.08); --line-strong:rgba(0,0,0,.16);
+      --shadow:0 10px 40px rgba(0,0,0,.18);
+    }
+  }
+
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0;}
+  body{
+    background:var(--bg); color:var(--txt);
+    font:16px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue",Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    /* Stop the whole page from rubber-band scrolling behind sheets on iOS. */
+    overscroll-behavior-y:none;
+    min-height:100svh;
+  }
+  button{font:inherit; color:inherit; cursor:pointer; border:0; background:none;}
+  img{display:block; max-width:100%;}
+  ::selection{background:rgba(10,132,255,.35);}
+
+  /* ============================ Top bar ============================ */
+  header{
+    position:sticky; top:0; z-index:40;
+    padding:calc(var(--sat) + 10px) calc(var(--sar) + 16px) 10px calc(var(--sal) + 16px);
+    background:color-mix(in srgb, var(--bg) 78%, transparent);
+    -webkit-backdrop-filter:saturate(160%) blur(20px);
+    backdrop-filter:saturate(160%) blur(20px);
+    border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand h1{font-size:19px; font-weight:700; letter-spacing:.2px; margin:0;}
+  .brand .dot{width:10px;height:10px;border-radius:50%;
+    background:conic-gradient(from 0deg,#0a84ff,#30d158,#ffd60a,#ff453a,#0a84ff);}
+  .brand .sub{font-size:12px; color:var(--txt-faint); margin-left:auto;}
+
+  /* Horizontally-scrollable category chips — momentum scroll, hidden scrollbar. */
+  .chips{
+    display:flex; gap:8px; margin-top:10px; padding-bottom:2px;
+    overflow-x:auto; -webkit-overflow-scrolling:touch; scroll-snap-type:x proximity;
+    scrollbar-width:none;
+  }
+  .chips::-webkit-scrollbar{display:none;}
+  .chip{
+    flex:0 0 auto; scroll-snap-align:start;
+    padding:7px 14px; border-radius:999px; font-size:13px; font-weight:600;
+    background:var(--bg-elev); border:1px solid var(--line); color:var(--txt-dim);
+    white-space:nowrap; transition:transform .12s ease, background .2s, color .2s;
+    touch-action:manipulation;
+  }
+  .chip:active{transform:scale(.94);}
+  .chip[aria-pressed="true"]{background:var(--accent); border-color:transparent; color:#fff;}
+  .chip .n{opacity:.7; margin-left:5px; font-variant-numeric:tabular-nums;}
+
+  .toolbar{display:flex; gap:10px; margin-top:10px; align-items:center;}
+  .select{
+    flex:1 1 auto; min-width:0; position:relative;
+  }
+  .select select{
+    -webkit-appearance:none; appearance:none; width:100%;
+    padding:9px 34px 9px 12px; border-radius:var(--radius-sm);
+    background:var(--bg-elev); border:1px solid var(--line); color:var(--txt);
+    font-size:14px; font-weight:600;
+  }
+  .select::after{
+    content:"⌄"; position:absolute; right:12px; top:50%; transform:translateY(-60%);
+    color:var(--txt-faint); pointer-events:none; font-size:16px;
+  }
+
+  /* ============================ Stats strip ============================ */
+  .stats{
+    display:flex; gap:10px; overflow-x:auto; -webkit-overflow-scrolling:touch;
+    padding:14px calc(var(--sar) + 16px) 4px calc(var(--sal) + 16px); scrollbar-width:none;
+  }
+  .stats::-webkit-scrollbar{display:none;}
+  .stat{
+    flex:0 0 auto; min-width:104px; padding:12px 14px; border-radius:var(--radius-sm);
+    background:var(--bg-elev); border:1px solid var(--line);
+  }
+  .stat b{display:block; font-size:22px; font-weight:800; font-variant-numeric:tabular-nums;}
+  .stat span{font-size:12px; color:var(--txt-faint);}
+
+  /* ============================ Masonry grid ============================ */
+  main{padding:14px calc(var(--sar) + 14px) calc(var(--sab) + 40px) calc(var(--sal) + 14px);}
+  .grid{
+    column-count:2; column-gap:12px;
+  }
+  @media (min-width:680px){ .grid{column-count:3;} }
+  @media (min-width:980px){ .grid{column-count:4;} }
+  @media (min-width:1320px){ .grid{column-count:5;} }
+
+  .card{
+    break-inside:avoid; margin:0 0 12px; border-radius:var(--radius); overflow:hidden;
+    background:var(--bg-elev); border:1px solid var(--line); position:relative;
+    transition:transform .14s ease;
+    content-visibility:auto; contain-intrinsic-size:auto 320px;
+  }
+  .card:active{transform:scale(.985);}
+  .card .thumb{position:relative; width:100%; background:var(--bg-elev2);}
+  .card .thumb img{width:100%; height:auto; object-fit:cover; display:block;}
+  .card .ph{aspect-ratio:3/4; width:100%;}
+  .card .ring{position:absolute; top:8px; right:8px; filter:drop-shadow(0 2px 6px rgba(0,0,0,.5));}
+  .card .meta{padding:10px 12px 12px;}
+  .card .meta .t{font-size:13px; font-weight:600; line-height:1.35;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+  .card .meta .s{font-size:11px; color:var(--txt-faint); margin-top:5px;
+    display:flex; align-items:center; gap:6px;}
+  .card .meta .s .cat{color:var(--accent); font-weight:600;}
+  .colorband{display:flex; height:5px;}
+  .colorband i{flex:1;}
+  .badge{position:absolute; top:8px; left:8px; font-size:10px; font-weight:700;
+    padding:3px 7px; border-radius:999px; background:rgba(0,0,0,.55); color:#fff;
+    -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);}
+
+  .empty{padding:60px 20px; text-align:center; color:var(--txt-faint);}
+
+  /* ============================ Bottom-sheet detail drawer ============================ */
+  .scrim{
+    position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.5);
+    opacity:0; pointer-events:none; transition:opacity .28s ease;
+    -webkit-backdrop-filter:blur(2px); backdrop-filter:blur(2px);
+  }
+  .scrim.on{opacity:1; pointer-events:auto;}
+  .sheet{
+    position:fixed; left:0; right:0; bottom:0; z-index:51;
+    max-height:92svh; height:92svh;
+    background:var(--bg-elev); border-radius:22px 22px 0 0;
+    box-shadow:var(--shadow); border-top:1px solid var(--line-strong);
+    transform:translateY(100%); transition:transform .34s cubic-bezier(.22,.61,.36,1);
+    display:flex; flex-direction:column; overscroll-behavior:contain;
+    padding-bottom:var(--sab);
+  }
+  .sheet.on{transform:translateY(0);}
+  .sheet .grip{flex:0 0 auto; padding:10px 0 6px; display:flex; justify-content:center; touch-action:none;}
+  .sheet .grip i{width:38px; height:5px; border-radius:3px; background:var(--line-strong);}
+  .sheet .body{overflow-y:auto; -webkit-overflow-scrolling:touch; padding:0 calc(var(--sar) + 18px) 24px calc(var(--sal) + 18px); flex:1 1 auto;}
+  .sheet .hero{position:relative; border-radius:16px; overflow:hidden; background:var(--bg-elev2);}
+  .sheet .hero img{width:100%; height:auto; display:block;}
+  .sheet .hero .ph{aspect-ratio:4/3;}
+  .sheet h2{font-size:20px; font-weight:800; margin:16px 0 4px; line-height:1.3;}
+  .sheet .src{font-size:13px; color:var(--txt-faint);}
+  .sheet .src a{color:var(--accent); text-decoration:none;}
+  .pill{display:inline-block; font-size:12px; font-weight:600; padding:4px 10px; border-radius:999px;
+    background:var(--bg-elev2); color:var(--txt-dim); margin:8px 8px 0 0;}
+  .pill.cat{color:var(--accent);}
+  .section-t{font-size:13px; font-weight:700; color:var(--txt-dim); letter-spacing:.4px;
+    text-transform:uppercase; margin:22px 0 10px;}
+  .summary{font-size:15px; line-height:1.62; color:var(--txt);}
+  .insp{list-style:none; padding:0; margin:0;}
+  .insp li{position:relative; padding:8px 0 8px 22px; font-size:14px; line-height:1.55; border-bottom:1px solid var(--line);}
+  .insp li:last-child{border-bottom:0;}
+  .insp li::before{content:"✦"; position:absolute; left:0; top:8px; color:var(--mid);}
+
+  /* Radar + per-dimension bars */
+  .radarwrap{display:flex; flex-direction:column; align-items:center; gap:6px;}
+  .dims{margin-top:14px;}
+  .dim{display:flex; align-items:center; gap:10px; padding:7px 0;}
+  .dim .lab{flex:0 0 7.4em; font-size:13px; color:var(--txt-dim);}
+  .dim .bar{flex:1 1 auto; height:7px; border-radius:4px; background:var(--bg-elev2); overflow:hidden;}
+  .dim .bar i{display:block; height:100%; border-radius:4px;}
+  .dim .v{flex:0 0 2.6em; text-align:right; font-size:13px; font-weight:700; font-variant-numeric:tabular-nums;}
+
+  .palette{display:flex; gap:8px; flex-wrap:wrap;}
+  .swatch{display:flex; flex-direction:column; align-items:center; gap:4px;}
+  .swatch i{width:46px; height:46px; border-radius:12px; border:1px solid var(--line);}
+  .swatch span{font-size:10px; color:var(--txt-faint); font-variant-numeric:tabular-nums;}
+
+  .navrow{display:flex; gap:10px; margin-top:24px;}
+  .navbtn{flex:1; padding:13px; border-radius:14px; background:var(--bg-elev2);
+    font-weight:700; font-size:15px; display:flex; align-items:center; justify-content:center; gap:6px;
+    touch-action:manipulation;}
+  .navbtn:active{transform:scale(.97);}
+  .navbtn[disabled]{opacity:.35;}
+  .navbtn.primary{background:var(--accent); color:#fff;}
+
+  /* ============================ Lightbox ============================ */
+  .lightbox{
+    position:fixed; inset:0; z-index:60; background:#000;
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none; transition:opacity .25s ease;
+    padding:var(--sat) var(--sar) var(--sab) var(--sal);
+  }
+  .lightbox.on{opacity:1; pointer-events:auto;}
+  .lightbox .stage{position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center; touch-action:none;}
+  .lightbox img{max-width:100%; max-height:100%; object-fit:contain; will-change:transform;}
+  .lightbox .close{position:absolute; top:calc(var(--sat) + 10px); right:calc(var(--sar) + 14px);
+    width:38px; height:38px; border-radius:50%; background:rgba(255,255,255,.16); color:#fff;
+    font-size:20px; display:flex; align-items:center; justify-content:center;}
+  .lightbox .lcount{position:absolute; top:calc(var(--sat) + 14px); left:0; right:0; text-align:center;
+    color:rgba(255,255,255,.85); font-size:13px; font-variant-numeric:tabular-nums; pointer-events:none;}
+  .lightbox .arrow{position:absolute; top:50%; transform:translateY(-50%);
+    width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,.14); color:#fff;
+    font-size:22px; display:none; align-items:center; justify-content:center;}
+  @media (hover:hover) and (pointer:fine){ .lightbox .arrow{display:flex;} }
+  .lightbox .arrow.prev{left:14px;} .lightbox .arrow.next{right:14px;}
+
+  .loader{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; color:var(--txt-faint); font-size:14px;}
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="dot" aria-hidden="true"></span>
+      <h1 id="title">妙析速递</h1>
+      <span class="sub" id="subtitle">摄影 · 设计 · 创意</span>
+    </div>
+    <div class="chips" id="chips" role="tablist" aria-label="题材筛选"></div>
+    <div class="toolbar">
+      <label class="select"><select id="sourceSel" aria-label="来源筛选"></select></label>
+      <label class="select"><select id="sortSel" aria-label="排序方式">
+        <option value="score">按分数</option>
+        <option value="source">按来源</option>
+        <option value="title">按标题</option>
+      </select></label>
+    </div>
+  </header>
+
+  <div class="stats" id="stats"></div>
+  <main><div class="grid" id="grid"></div><div class="empty" id="empty" hidden>没有匹配的图片。</div></main>
+  <div class="loader" id="loader">正在载入图库…</div>
+
+  <!-- Detail bottom-sheet -->
+  <div class="scrim" id="scrim"></div>
+  <section class="sheet" id="sheet" aria-modal="true" role="dialog" aria-label="图片详情">
+    <div class="grip" id="grip"><i></i></div>
+    <div class="body" id="sheetBody"></div>
+  </section>
+
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox">
+    <div class="lcount" id="lcount"></div>
+    <button class="close" id="lbClose" aria-label="关闭">✕</button>
+    <button class="arrow prev" id="lbPrev" aria-label="上一张">‹</button>
+    <div class="stage" id="lbStage"><img id="lbImg" alt=""></div>
+    <button class="arrow next" id="lbNext" aria-label="下一张">›</button>
+  </div>
+
+  <!-- Data injection point. build_ios_gallery.py replaces the JSON body with the real
+       library; opened raw, parsing fails and JS falls back to the embedded SAMPLE below. -->
+  <script id="muse-data" type="application/json">__MUSE_DATA_JSON__</script>
+
+  <script>
+  "use strict";
+  /* ====================== Labels (内部英文键 → 中文) ====================== */
+  const CAT_LABELS = {
+    "Portrait":"人像","Street":"街拍","Landscape":"风光","Architecture":"建筑",
+    "Documentary":"纪实","Wildlife & Nature":"自然与野生","Astro":"星空",
+    "Conceptual & Fine-Art":"观念与艺术","Product & Commercial":"产品与商业",
+    "Fashion":"时尚","Travel":"旅行","Black & White":"黑白","Design":"设计",
+    "Uncategorized":"未分类"
+  };
+  const DIM_KEYS = [
+    "composition_design","visual_elements_structure","technical_execution",
+    "originality_creativity","theme_communication","emotion_viewer_resonance",
+    "overall_aesthetic","comprehensive"
+  ];
+  const DIM_LABELS = {
+    composition_design:"构图与设计", visual_elements_structure:"视觉元素与结构",
+    technical_execution:"技术执行", originality_creativity:"原创性与创意",
+    theme_communication:"主题与传达", emotion_viewer_resonance:"情感与观者共鸣",
+    overall_aesthetic:"整体格调", comprehensive:"综合评估"
+  };
+  const DIM_SHORT = {
+    composition_design:"构图", visual_elements_structure:"元素",
+    technical_execution:"技术", originality_creativity:"创意",
+    theme_communication:"主题", emotion_viewer_resonance:"情感",
+    overall_aesthetic:"格调", comprehensive:"综合"
+  };
+
+  /* Minimal offline demo so the file is meaningful when opened standalone. */
+  const SAMPLE = {
+    title:"妙析速递",
+    subtitle:"示例数据 · 摄影 / 设计 / 创意",
+    items:[
+      {id:"s1",title:"晨雾中的山脊线",source:"示例来源",category:"Landscape",score:8.4,
+       dominant_colors:["#2a3b4d","#6d8aa3","#c7d6df","#e8edf0","#13202b"],
+       analysis:{backend:"demo",summary:"冷调晨雾把山脊压成层层退晕的剪影，前景留白克制，引导视线沿对角缓缓上行；高光不溢、暗部仍有细节，整体格调安静而克制。",
+        dimensions:{composition_design:8.6,visual_elements_structure:8.0,technical_execution:8.3,originality_creativity:7.4,theme_communication:8.1,emotion_viewer_resonance:8.5,overall_aesthetic:8.7,comprehensive:8.4},
+        inspiration:["利用大气透视制造纵深，远景越淡越远","把地平线压低，给雾与天更多呼吸空间","冷色主调里留一点暖光做视觉锚点"]}},
+      {id:"s2",title:"霓虹雨夜的街角",source:"示例来源",category:"Street",score:7.6,
+       dominant_colors:["#0d0b14","#ff2e63","#08d9d6","#252a34","#eaeaea"],
+       analysis:{backend:"demo",summary:"高饱和的霓虹在湿地面形成镜像，互补的洋红与青蓝撑起戏剧张力；快门凝住雨丝，人物剪影成为构图重心。",
+        dimensions:{composition_design:7.8,visual_elements_structure:7.9,technical_execution:7.2,originality_creativity:7.9,theme_communication:7.4,emotion_viewer_resonance:7.7,overall_aesthetic:7.5,comprehensive:7.6},
+        inspiration:["让地面反射成为第二画面","用互补色制造冲突感","等一个人入画给空间以叙事"]}},
+      {id:"s3",title:"极简主义海报构成",source:"示例来源",category:"Design",score:8.1,
+       dominant_colors:["#f4f1de","#e07a5f","#3d405b","#81b29a","#f2cc8f"],
+       analysis:{backend:"demo",summary:"大面积留白与几何色块构成稳定的网格秩序，暖陶土色与雾蓝形成温和对比，字距张弛得当，呼吸感强。",
+        dimensions:{composition_design:8.5,visual_elements_structure:8.2,technical_execution:8.0,originality_creativity:7.8,theme_communication:8.3,emotion_viewer_resonance:7.6,overall_aesthetic:8.4,comprehensive:8.1},
+        inspiration:["用网格约束自由","低饱和撞色更显高级","留白也是信息"]}},
+      {id:"s4",title:"逆光中的肖像",source:"示例来源",category:"Portrait",score:7.9,
+       dominant_colors:["#3a2a23","#c08552","#f3d9b1","#5e4030","#1c130d"],
+       analysis:{backend:"demo",summary:"逆光勾出发丝轮廓，暖色高光与阴影面的层次过渡细腻；浅景深把环境虚化成柔和的光斑，情绪温润。",
+        dimensions:{composition_design:7.7,visual_elements_structure:7.6,technical_execution:8.1,originality_creativity:7.3,theme_communication:8.0,emotion_viewer_resonance:8.4,overall_aesthetic:8.0,comprehensive:7.9},
+        inspiration:["逆光勾边塑造空气感","让光斑成为氛围","暖调统一情绪"]}}
+    ]
+  };
+
+  /* ====================== Data normalisation ====================== */
+  function num(v){ const n = typeof v==="number"?v:parseFloat(v); return Number.isFinite(n)?n:null; }
+  function clamp10(n){ if(n==null) return null; if(n>10 && n<=100) n=n/10; return Math.max(0,Math.min(10,n)); }
+
+  function normDims(a){
+    // Accept analysis.dimensions as {key:score} or {key:{score,text}}; also tolerate top-level scores.
+    const src = (a && (a.dimensions || a.scores)) || {};
+    const out = {};
+    for(const k of DIM_KEYS){
+      let v = src[k];
+      if(v && typeof v==="object") v = v.score;
+      out[k] = clamp10(num(v));
+    }
+    return out;
+  }
+  function dimText(a){
+    const src = (a && a.dimensions) || {};
+    const out = {};
+    for(const k of DIM_KEYS){ const v=src[k]; if(v && typeof v==="object" && v.text) out[k]=v.text; }
+    return out;
+  }
+  function normItem(raw, i){
+    const a = raw.analysis || {};
+    const dims = normDims(a);
+    let score = clamp10(num(raw.score)) ;
+    if(score==null) score = clamp10(num(a.score ?? a.overall ?? dims.comprehensive ?? dims.overall_aesthetic));
+    const colors = (raw.dominant_colors || raw.colors || a.dominant_colors || [])
+      .filter(Boolean).map(String).slice(0,5);
+    return {
+      id: raw.id || ("i"+i),
+      title: raw.title || raw.caption || "未命名作品",
+      source: raw.source || raw.feed || "未知来源",
+      url: raw.source_url || raw.url || raw.link || "",
+      image: raw.image || raw.thumb || raw.thumbnail || raw.path || "",
+      category: raw.category || "Uncategorized",
+      score,
+      colors,
+      backend: a.backend || raw.backend || "",
+      fallback: !!(a.fallback || raw.fallback),
+      summary: a.summary || a.text || a.analysis || raw.summary || "",
+      dims, dimText: dimText(a),
+      inspiration: (a.inspiration || a.tips || a.creative || raw.inspiration || []).filter(Boolean)
+    };
+  }
+  function loadRaw(){
+    const tag = document.getElementById("muse-data");
+    if(tag){ try{ const d = JSON.parse(tag.textContent); if(d && (d.items||Array.isArray(d))) return d; }catch(e){} }
+    return SAMPLE;
+  }
+
+  const RAW = loadRaw();
+  const META = { title: RAW.title || "妙析速递", subtitle: RAW.subtitle || "摄影 · 设计 · 创意" };
+  const ITEMS = (Array.isArray(RAW) ? RAW : (RAW.items||[])).map(normItem);
+
+  /* ====================== Helpers ====================== */
+  const $ = s => document.querySelector(s);
+  const el = (t,c) => { const e=document.createElement(t); if(c) e.className=c; return e; };
+  const catLabel = k => CAT_LABELS[k] || k;
+  function scoreColor(s){ if(s==null) return "var(--txt-faint)"; return s>=7.5?"var(--good)":s>=5.5?"var(--mid)":"var(--low)"; }
+  function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+  // Deterministic gradient from id, used when an image file is missing (offline demo).
+  function gradFor(item){
+    const cs = item.colors.length>=2 ? item.colors : ["#3a3a44","#15151b"];
+    return `linear-gradient(135deg, ${cs[0]}, ${cs[Math.min(2,cs.length-1)]||cs[0]})`;
+  }
+
+  // Score ring as inline SVG.
+  function ringSVG(score, size){
+    const r=(size-6)/2, c=2*Math.PI*r, frac=(score==null?0:score/10);
+    const col = scoreColor(score);
+    const txt = score==null?"—":score.toFixed(1);
+    return `<svg class="ring" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true">
+      <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="rgba(0,0,0,.45)" stroke="rgba(255,255,255,.18)" stroke-width="3"/>
+      <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${col}" stroke-width="3"
+        stroke-linecap="round" stroke-dasharray="${(c*frac).toFixed(1)} ${c.toFixed(1)}"
+        transform="rotate(-90 ${size/2} ${size/2})"/>
+      <text x="50%" y="50%" dy=".34em" text-anchor="middle" fill="#fff" font-size="${size*0.34}" font-weight="800">${txt}</text>
+    </svg>`;
+  }
+
+  // Radar chart for the 8 dimensions.
+  function radarSVG(dims, size){
+    const cx=size/2, cy=size/2, R=size/2-26, n=DIM_KEYS.length;
+    const pt=(i,rad)=>{ const ang=-Math.PI/2 + i*2*Math.PI/n; return [cx+rad*Math.cos(ang), cy+rad*Math.sin(ang)]; };
+    let rings="";
+    for(let g=1; g<=4; g++){
+      const pts=DIM_KEYS.map((_,i)=>pt(i,R*g/4).map(v=>v.toFixed(1)).join(",")).join(" ");
+      rings+=`<polygon points="${pts}" fill="none" stroke="var(--line)" stroke-width="1"/>`;
+    }
+    let axes="", labels="", any=false;
+    const poly=DIM_KEYS.map((k,i)=>{
+      const v=dims[k]; if(v!=null) any=true;
+      const [x,y]=pt(i,R*((v==null?0:v)/10));
+      const [ax,ay]=pt(i,R);
+      axes+=`<line x1="${cx}" y1="${cy}" x2="${ax.toFixed(1)}" y2="${ay.toFixed(1)}" stroke="var(--line)" stroke-width="1"/>`;
+      const [lx,ly]=pt(i,R+15);
+      labels+=`<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" dy=".32em" text-anchor="middle" fill="var(--txt-faint)" font-size="10">${DIM_SHORT[k]}</text>`;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(" ");
+    const shape = any
+      ? `<polygon points="${poly}" fill="rgba(10,132,255,.28)" stroke="var(--accent)" stroke-width="2"/>`
+      : `<text x="${cx}" y="${cy}" dy=".32em" text-anchor="middle" fill="var(--txt-faint)" font-size="12">该后端未提供逐维度分数</text>`;
+    return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="八维度雷达图">
+      ${rings}${axes}${shape}${labels}</svg>`;
+  }
+
+  /* ====================== State + filtering ====================== */
+  const state = { cat:"__all", source:"__all", sort:"score" };
+  let view = ITEMS.slice();
+
+  function applyFilters(){
+    view = ITEMS.filter(it =>
+      (state.cat==="__all" || it.category===state.cat) &&
+      (state.source==="__all" || it.source===state.source)
+    );
+    view.sort((a,b)=>{
+      if(state.sort==="score") return (b.score??-1)-(a.score??-1);
+      if(state.sort==="source") return a.source.localeCompare(b.source,"zh") || (b.score??-1)-(a.score??-1);
+      return a.title.localeCompare(b.title,"zh");
+    });
+    renderGrid();
+  }
+
+  /* ====================== Render: chips, sources, stats ====================== */
+  function renderChips(){
+    const counts={}; ITEMS.forEach(it=>counts[it.category]=(counts[it.category]||0)+1);
+    const cats=Object.keys(counts).sort((a,b)=>counts[b]-counts[a]);
+    const box=$("#chips"); box.innerHTML="";
+    const mk=(key,label,n)=>{
+      const b=el("button","chip"); b.setAttribute("role","tab");
+      b.setAttribute("aria-pressed", String(state.cat===key));
+      b.innerHTML = `${esc(label)}<span class="n">${n}</span>`;
+      b.onclick=()=>{ state.cat=key; renderChips(); applyFilters(); };
+      box.appendChild(b);
+    };
+    mk("__all","全部",ITEMS.length);
+    cats.forEach(c=>mk(c,catLabel(c),counts[c]));
+  }
+  function renderSources(){
+    const set=[...new Set(ITEMS.map(it=>it.source))].sort((a,b)=>a.localeCompare(b,"zh"));
+    const sel=$("#sourceSel");
+    sel.innerHTML = `<option value="__all">全部来源</option>` + set.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
+  }
+  function renderStats(){
+    const scored=ITEMS.filter(it=>it.score!=null);
+    const avg = scored.length ? (scored.reduce((s,it)=>s+it.score,0)/scored.length) : null;
+    const cats=new Set(ITEMS.map(it=>it.category)).size;
+    const srcs=new Set(ITEMS.map(it=>it.source)).size;
+    const data=[["图片",ITEMS.length],["分类",cats],["来源",srcs],["平均分", avg==null?"—":avg.toFixed(1)]];
+    $("#stats").innerHTML = data.map(([k,v])=>`<div class="stat"><b>${v}</b><span>${k}</span></div>`).join("");
+  }
+
+  /* ====================== Render: grid ====================== */
+  function thumbHTML(it, phClass){
+    if(it.image){
+      return `<img loading="lazy" src="${esc(it.image)}" alt="${esc(it.title)}"
+        onerror="this.parentNode.classList.add('noimg'); this.replaceWith(Object.assign(document.createElement('div'),{className:'${phClass}',style:'background:${gradFor(it)}'}))">`;
+    }
+    return `<div class="${phClass}" style="background:${gradFor(it)}"></div>`;
+  }
+  function renderGrid(){
+    const grid=$("#grid"); grid.innerHTML="";
+    $("#empty").hidden = view.length>0;
+    view.forEach((it,idx)=>{
+      const card=el("article","card");
+      const band = it.colors.length
+        ? `<div class="colorband">${it.colors.map(c=>`<i style="background:${esc(c)}"></i>`).join("")}</div>` : "";
+      card.innerHTML = `
+        <div class="thumb">
+          ${it.fallback?'<span class="badge">回退</span>':''}
+          ${thumbHTML(it,"ph")}
+          ${ringSVG(it.score,42)}
+        </div>
+        ${band}
+        <div class="meta">
+          <div class="t">${esc(it.title)}</div>
+          <div class="s"><span class="cat">${esc(catLabel(it.category))}</span>·<span>${esc(it.source)}</span></div>
+        </div>`;
+      card.onclick=()=>openSheet(idx);
+      grid.appendChild(card);
+    });
+  }
+
+  /* ====================== Detail bottom-sheet ====================== */
+  let cur = -1;
+  function openSheet(idx){
+    cur = idx; const it=view[idx];
+    const dimsHTML = DIM_KEYS.map(k=>{
+      const v=it.dims[k];
+      return `<div class="dim"><span class="lab">${DIM_LABELS[k]}</span>
+        <span class="bar"><i style="width:${v==null?0:v*10}%;background:${scoreColor(v)}"></i></span>
+        <span class="v" style="color:${scoreColor(v)}">${v==null?"—":v.toFixed(1)}</span></div>`;
+    }).join("");
+    const palette = it.colors.length ? `<div class="section-t">主色调</div>
+      <div class="palette">${it.colors.map(c=>`<div class="swatch"><i style="background:${esc(c)}"></i><span>${esc(c)}</span></div>`).join("")}</div>` : "";
+    const insp = it.inspiration.length ? `<div class="section-t">创意灵感</div>
+      <ul class="insp">${it.inspiration.map(t=>`<li>${esc(t)}</li>`).join("")}</ul>` : "";
+    const srcLine = it.url
+      ? `${esc(it.source)} · <a href="${esc(it.url)}" target="_blank" rel="noopener">来源链接 ↗</a>`
+      : esc(it.source);
+    const backendTag = it.backend ? `<span class="pill">${esc(it.backend)}${it.fallback?" · 回退":""}</span>` : "";
+
+    $("#sheetBody").innerHTML = `
+      <div class="hero" id="heroTap">
+        ${it.image ? `<img src="${esc(it.image)}" alt="${esc(it.title)}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',style:'background:${gradFor(it)}'}))">`
+                   : `<div class="ph" style="background:${gradFor(it)}"></div>`}
+      </div>
+      <h2>${esc(it.title)}</h2>
+      <div class="src">${srcLine}</div>
+      <div><span class="pill cat">${esc(catLabel(it.category))}</span>
+        <span class="pill" style="color:${scoreColor(it.score)}">总分 ${it.score==null?"—":it.score.toFixed(1)}</span>${backendTag}</div>
+      ${it.summary?`<div class="section-t">整体评析</div><div class="summary">${esc(it.summary)}</div>`:""}
+      <div class="section-t">八维度美学</div>
+      <div class="radarwrap">${radarSVG(it.dims,236)}</div>
+      <div class="dims">${dimsHTML}</div>
+      ${palette}
+      ${insp}
+      <div class="navrow">
+        <button class="navbtn" id="prevBtn" ${idx<=0?"disabled":""}>‹ 上一张</button>
+        <button class="navbtn primary" id="zoomBtn">查看大图</button>
+        <button class="navbtn" id="nextBtn" ${idx>=view.length-1?"disabled":""}>下一张 ›</button>
+      </div>`;
+
+    $("#sheetBody").scrollTop = 0;
+    $("#scrim").classList.add("on");
+    $("#sheet").classList.add("on");
+    document.body.style.overflow="hidden";
+    $("#prevBtn").onclick=()=>{ if(cur>0) openSheet(cur-1); };
+    $("#nextBtn").onclick=()=>{ if(cur<view.length-1) openSheet(cur+1); };
+    $("#zoomBtn").onclick=()=>openLightbox(cur);
+    $("#heroTap").onclick=()=>openLightbox(cur);
+  }
+  function closeSheet(){
+    $("#scrim").classList.remove("on");
+    $("#sheet").classList.remove("on");
+    $("#sheet").style.transform="";
+    document.body.style.overflow="";
+  }
+  $("#scrim").onclick=closeSheet;
+
+  // Swipe-down-to-dismiss on the grip (iOS sheet idiom).
+  (function(){
+    const sheet=$("#sheet"), grip=$("#grip"); let y0=null, dy=0;
+    const start=e=>{ y0=(e.touches?e.touches[0]:e).clientY; dy=0; sheet.style.transition="none"; };
+    const move=e=>{ if(y0==null) return; dy=Math.max(0,(e.touches?e.touches[0]:e).clientY - y0);
+      sheet.style.transform=`translateY(${dy}px)`; if(e.cancelable) e.preventDefault(); };
+    const end=()=>{ if(y0==null) return; sheet.style.transition="";
+      if(dy>110) closeSheet(); else sheet.style.transform=""; y0=null; };
+    grip.addEventListener("touchstart",start,{passive:true});
+    grip.addEventListener("touchmove",move,{passive:false});
+    grip.addEventListener("touchend",end);
+  })();
+
+  /* ====================== Lightbox with swipe ====================== */
+  let lbIdx=-1;
+  function setLB(){
+    const it=view[lbIdx]; const img=$("#lbImg");
+    img.style.transform="translateX(0)"; img.style.opacity="1";
+    if(it.image){ img.src=it.image; img.alt=it.title; img.style.display=""; }
+    else { img.removeAttribute("src"); img.style.display="none"; }
+    $("#lcount").textContent = `${lbIdx+1} / ${view.length}`;
+    $("#lbPrev").style.visibility = lbIdx>0?"visible":"hidden";
+    $("#lbNext").style.visibility = lbIdx<view.length-1?"visible":"hidden";
+  }
+  function openLightbox(idx){ lbIdx=idx; setLB(); $("#lightbox").classList.add("on"); }
+  function closeLightbox(){ $("#lightbox").classList.remove("on"); }
+  function lbStep(d){ const n=lbIdx+d; if(n>=0 && n<view.length){ lbIdx=n; setLB(); } }
+  $("#lbClose").onclick=closeLightbox;
+  $("#lbPrev").onclick=()=>lbStep(-1);
+  $("#lbNext").onclick=()=>lbStep(1);
+
+  (function(){
+    const stage=$("#lbStage"), img=$("#lbImg"); let x0=null,y0=null,dx=0,dy=0,moved=false;
+    const start=e=>{ const t=e.touches?e.touches[0]:e; x0=t.clientX; y0=t.clientY; dx=dy=0; moved=false; img.style.transition="none"; };
+    const move=e=>{ if(x0==null) return; const t=e.touches?e.touches[0]:e; dx=t.clientX-x0; dy=t.clientY-y0; moved=true;
+      if(Math.abs(dx)>Math.abs(dy)){ img.style.transform=`translateX(${dx}px)`; img.style.opacity=String(1-Math.min(Math.abs(dx)/400,.6)); }
+      else { img.style.transform=`translateY(${dy}px)`; img.style.opacity=String(1-Math.min(Math.abs(dy)/400,.7)); }
+      if(e.cancelable) e.preventDefault(); };
+    const end=()=>{ if(x0==null) return; img.style.transition="transform .2s ease, opacity .2s ease";
+      if(Math.abs(dx)>Math.abs(dy) && Math.abs(dx)>70){ lbStep(dx<0?1:-1); }
+      else if(Math.abs(dy)>110){ closeLightbox(); }
+      else { img.style.transform="translateX(0)"; img.style.opacity="1"; if(!moved && Math.abs(dx)<6 && Math.abs(dy)<6) closeLightbox(); }
+      x0=null; };
+    stage.addEventListener("touchstart",start,{passive:true});
+    stage.addEventListener("touchmove",move,{passive:false});
+    stage.addEventListener("touchend",end);
+    stage.addEventListener("click",e=>{ if(e.target===stage) closeLightbox(); });
+  })();
+
+  // Keyboard (iPad with Magic Keyboard / desktop).
+  document.addEventListener("keydown",e=>{
+    if($("#lightbox").classList.contains("on")){
+      if(e.key==="ArrowLeft") lbStep(-1);
+      else if(e.key==="ArrowRight") lbStep(1);
+      else if(e.key==="Escape") closeLightbox();
+    } else if($("#sheet").classList.contains("on")){
+      if(e.key==="Escape") closeSheet();
+      else if(e.key==="ArrowLeft" && cur>0) openSheet(cur-1);
+      else if(e.key==="ArrowRight" && cur<view.length-1) openSheet(cur+1);
+    }
+  });
+
+  /* ====================== Boot ====================== */
+  $("#title").textContent = META.title;
+  $("#subtitle").textContent = META.subtitle;
+  document.title = META.title + " · iOS 图库";
+  $("#sourceSel").onchange = e=>{ state.source=e.target.value; applyFilters(); };
+  $("#sortSel").onchange = e=>{ state.sort=e.target.value; applyFilters(); };
+  renderChips(); renderSources(); renderStats(); applyFilters();
+  $("#loader").remove();
+  </script>
+</body>
+</html>

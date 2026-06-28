@@ -1,6 +1,6 @@
 # MuseDigest
 
-> 中文版（主）：[README.md](README.md)
+> 中文版（主）：[README.md](README.md) · 📱 iOS mobile gallery: [README_IOS.md](README_IOS.md)
 
 Automatically collect the latest **photography / design / creative-industry** news, compile
 **categorized image albums**, and analyze each image from **design & aesthetic** perspectives —
@@ -57,6 +57,20 @@ The generated `data/gallery/index.html` is a self-contained, offline app:
   (lights up when a backend supplies per-dimension scores), per-dimension score chips, the
   "creative inspiration" takeaway, and **← / →** navigation between images.
 - **Lightbox** — click the drawer image to view it large; arrow-key navigation.
+
+## 📱 iOS mobile gallery
+
+Want it on an iPhone / iPad? Render an **iOS-Safari-optimized** responsive build (touch gestures,
+notch safe-areas, adaptive masonry, "Add to Home Screen" for an offline app feel). It does **not**
+re-analyze anything — it just re-skins the existing library for mobile:
+
+```bash
+python build_ios_gallery.py --open      # build data/gallery-ios/index.html and open it
+python build_ios_gallery.py --serve     # LAN server — open in Safari on an iPhone on the same WiFi
+```
+
+Or double-click **`start-ios.bat`** (Windows) / run **`./start-ios.sh`** (macOS/Linux). Falls back
+to bundled sample data when no library exists yet. See **[README_IOS.md](README_IOS.md)** for details.
 
 ## Import your own photos
 
